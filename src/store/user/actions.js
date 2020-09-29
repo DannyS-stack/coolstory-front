@@ -1,27 +1,30 @@
 import { apiUrl } from "../../config/constants";
 import axios from "axios";
 import { selectToken } from "./selectors";
+import { useSelector } from "react-redux";
+import { selectUser } from "./selectors";
 import {
   appLoading,
   appDoneLoading,
   showMessageWithTimeout,
-  setMessage
+  setMessage,
 } from "../appState/actions";
 
 export const LOGIN_SUCCESS = "LOGIN_SUCCESS";
 export const TOKEN_STILL_VALID = "TOKEN_STILL_VALID";
 export const LOG_OUT = "LOG_OUT";
+export const STORY_DELETE_SUCCESS = "STORY_DELETE_SUCCESS";
 
-const loginSuccess = userWithToken => {
+const loginSuccess = (userWithToken) => {
   return {
     type: LOGIN_SUCCESS,
-    payload: userWithToken
+    payload: userWithToken,
   };
 };
 
-const tokenStillValid = userWithoutToken => ({
+const tokenStillValid = (userWithoutToken) => ({
   type: TOKEN_STILL_VALID,
-  payload: userWithoutToken
+  payload: userWithoutToken,
 });
 
 export const logOut = () => ({ type: LOG_OUT });
@@ -33,7 +36,7 @@ export const signUp = (name, email, password) => {
       const response = await axios.post(`${apiUrl}/signup`, {
         name,
         email,
-        password
+        password,
       });
 
       dispatch(loginSuccess(response.data));
@@ -58,7 +61,7 @@ export const login = (email, password) => {
     try {
       const response = await axios.post(`${apiUrl}/login`, {
         email,
-        password
+        password,
       });
 
       dispatch(loginSuccess(response.data));
@@ -90,7 +93,7 @@ export const getUserWithStoredToken = () => {
       // if we do have a token,
       // check wether it is still valid or if it is expired
       const response = await axios.get(`${apiUrl}/me`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       // token is still valid
@@ -109,3 +112,68 @@ export const getUserWithStoredToken = () => {
     }
   };
 };
+
+export const storyDeleteSuccess = (storyId) => ({
+  type: STORY_DELETE_SUCCESS,
+  payload: storyId, // delete story from the reducer
+});
+
+export const deleteStory = (storyId) => {
+  return async (dispatch, getState) => {
+    dispatch(appLoading());
+    const { homepage, token } = selectUser(getState());
+    const homepageId = homepage.id;
+    // make an axios request to delete
+    // and console.log the response if success
+    try {
+      const response = await axios.delete(
+        `${apiUrl}/homepage/${storyId}`, // something on the backend here?
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      console.log("Story deleted?", response.data);
+      dispatch(storyDeleteSuccess(storyId));
+      dispatch(appDoneLoading());
+    } catch (e) {
+      console.error(e);
+    }
+  };
+};
+export const storyCreateSuccess = (story) => ({
+  type: "STORY_CREATE_SUCCESS",
+  payload: story, // create story in the reducer
+});
+
+export const postStory = (name, content, imageUrl) => async (
+  dispatch,
+  getState
+) => {
+  const { token, homepage } = selectUser(getState());
+
+  // we need to POST to an endpoint (that we need to make)
+  try {
+    const response = await axios.post(
+      `http://localhost:4000/homepage/${homepage.id}/stories`,
+      {
+        name,
+        content,
+        imageUrl,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    console.log("Story created?", response);
+    dispatch(storyCreateSuccess(response));
+  } catch (e) {
+    console.error(e);
+  }
+};
+//we need to dispatch an action to update the state
